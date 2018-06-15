@@ -4,6 +4,7 @@
 
 ## Load packages
 library(tidyverse)
+library(ggplot2)
 
 ## Load data
 tut <- read_csv("attendance.csv")  
@@ -88,5 +89,22 @@ compare <- merge(pass.sum, xl.pass)
 
 ### Every decision the same
 compare %>% filter(xlpass != pass)
+
+### create a visualisation of attendance for each tutor by tutorial
+
+### count up everyone's tuteees and compute attendance percentage for each tutorial
+tut.att<-tut %>%
+  group_by(TutorSName, tutorial) %>%
+  summarise(attend.N = n()/50, 
+            attend.pc = round(mean(att, na.rm = TRUE) * 100) ) 
+
+### plot with tutors on y, tutorial on x, attendance as red to green, size as N
+ggplot(tut.att, 
+          aes(x=tutorial, y=reorder(TutorSName, desc(TutorSName)))) +
+          geom_point(aes(color = attend.pc, size=attend.N)) +
+          scale_color_gradient(low="red", high="green", name="Attendance") +
+          ylab("Tutor") +
+          guides(size="none")
+
 
 
