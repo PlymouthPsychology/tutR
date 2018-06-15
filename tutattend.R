@@ -35,7 +35,7 @@ tutorfails <- tut %>%
 ## Attendance by student
 
 ### Code NULL attendance (which is attendance not recorded by tutor) as NA
-# tut$attend[tut$attend == "NULL"] <- NA
+tut$attend[tut$attend == "NULL"] <- NA
 
 ### Classify each attendance as present, absent, or missing data (NA)
 ### (in loaded data, 1 = present, 2 = absent, 8 = excused)
