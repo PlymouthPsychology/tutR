@@ -1,10 +1,9 @@
 ## Script to calculate tutorial attendance
-## Andy Wills
+## Andy Wills (words) and Jon May (pictures)
 ## GPL 3.0
 
 ## Load packages
 library(tidyverse)
-library(ggplot2)
 
 ## Load data
 tut <- read_csv("attendance.csv")  
