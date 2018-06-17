@@ -24,7 +24,7 @@ tut$tutorial <- as.numeric(factor(tut$tutorial))
 tut <- tut %>% filter(tutorial < 8 | (tutorial >= 8 & ProgID < 200))
 
 ### Select just the columns we need
-tut <- tut %>% select(PsyGateID, TutorSName, tutorial, attend)
+tut <- tut %>% select(PsyGateID, TutorSName, ProgID, tutorial, attend)
 
 ## Look at tutor failures to record attendance
 tutorfails <- tut %>% 
@@ -41,6 +41,13 @@ tut$attend[tut$attend == "NULL"] <- NA
 ### (in loaded data, 1 = present, 2 = absent, 8 = excused)
 tut <- tut %>% 
   mutate(att = recode(attend, "1" = 1, "2" = 0, "8" = 1, "NULL" = 0))
+
+### Add variable for Stage, using ModuleID
+tut <- tut %>% 
+  mutate(Stage = case_when(
+    ProgID <= 199 ~ "Stage 1",
+    ProgID <= 299 ~ "Stage 2",
+    ProgID <= 499 ~ "Stage 4"))
 
 ### Calculate attendance percentage
 attstud <- tut %>% 
@@ -93,17 +100,20 @@ compare %>% filter(xlpass != pass)
 
 ### count up everyone's tuteees and compute attendance percentage for each tutorial
 tut.att<-tut %>%
-  group_by(TutorSName, tutorial) %>%
+  group_by(TutorSName, tutorial, Stage) %>%
   summarise(attend.N = n()/50, 
             attend.pc = round(mean(att, na.rm = TRUE) * 100) ) 
 
 ### plot with tutors on y, tutorial on x, attendance as red to green, size as N
 ggplot(tut.att, 
-          aes(x=tutorial, y=reorder(TutorSName, desc(TutorSName)))) +
-          geom_point(aes(color = attend.pc, size=attend.N)) +
-          scale_color_gradient(low="red", high="green", name="Attendance") +
-          ylab("Tutor") +
-          guides(size="none")
+       aes(x=tutorial, y=reorder(TutorSName, desc(TutorSName)))) +
+  geom_point(aes(color = attend.pc, size=attend.N)) +
+  scale_color_gradient(low="red", high="green", name="Attendance") +
+  ylab("")  +  xlab("") +
+  guides(size="none") +
+  facet_grid(. ~ Stage) +
+  theme(axis.text.x = element_blank(), axis.ticks = element_blank() )
+
 
 
 
