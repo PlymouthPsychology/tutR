@@ -1,0 +1,90 @@
+---
+title: "Analyse attendance by-tutor, accounting for tutor group effects"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rstanarm)
+library(lmerTest)
+library(pander)
+# devtools::install_github("mjskay/tidybayes")
+library(tidybayes)
+options(mc.cores = parallel::detectCores())
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Arrange the raw data:
+
+```{r, eval=F}
+tut <- read_csv('tut.csv')
+attend_data <- tut %>% 
+  mutate(present = ifelse(attend=="1", 1, 0)) %>% 
+  mutate(presentorexcused = ifelse(attend=="1"|attend=="8", 1, 0)) %>% 
+  filter(Stage=="Stage 1") %>% 
+  # ANONYMISE FOR NOW
+  mutate(TutorSName = paste0("T", as.numeric(factor(TutorSName)))) 
+write_csv(attend_data, 'anonymised.csv')
+```
+
+And if you only have the anonymised data, do this:
+
+```{r}
+attend_data <- read_csv('anonymised.csv')
+```
+
+Model binary attendance data for each individual student within tutor groups, and by tutor:
+
+```{r, include=F, cache=T}
+m1 <- stan_glmer(present~(1|TutorGroup)+(1|TutorSName), data=attend_data, family=binomial, iter=2000)
+```
+
+
+Plot estimated attendance by tutor (note this is NOT anonymised yet):
+
+```{r}
+attend_data %>% distinct(TutorSName, TutorGroup) %>% 
+  add_fitted_samples(m1) %>% 
+  group_by(TutorSName) %>% tidybayes::mean_qi(estimate) %>% 
+  ungroup() %>% 
+  mutate(TutorSName = forcats::fct_reorder(factor(TutorSName), estimate)) %>% 
+  ggplot(aes(TutorSName, estimate, ymin=conf.low, ymax=conf.high)) + 
+  geom_pointrange() + 
+  coord_flip() 
+```
+
+
+
+Force the assumption that everyone had the same average tutor group. This currently blows out the tutor-level errors because we don't have enough groups per-tutor, but will contract as more data added next year:
+
+```{r}
+attend_data %>% distinct(TutorSName) %>% 
+  mutate(TutorGroup=Inf) %>% 
+  add_fitted_samples(m1) %>% 
+  group_by(TutorSName) %>% tidybayes::mean_qi(estimate) %>% 
+  ungroup() %>% 
+  mutate(TutorSName = forcats::fct_reorder(factor(TutorSName), estimate)) %>% 
+  ggplot(aes(TutorSName, estimate, ymin=conf.low, ymax=conf.high)) + 
+  geom_pointrange() + 
+  coord_flip() 
+```
+
+
+Are the best and worst tutors really different, even removing tutor-group effects?
+
+```{r}
+preds <- attend_data %>% distinct(TutorSName) %>% 
+  mutate(TutorGroup=Inf) %>% 
+  add_fitted_samples(m1) %>% 
+  ungroup() %>% 
+  data.table::dcast(.iteration~TutorSName, value.var="estimate")
+
+preds %>% mean_qi(T20<T3) %>% select(-contains("conf")) %>% pander()
+
+preds %>% mean_qi(T20-T3) %>% pander()
+
+preds %>% 
+  ggplot(aes(T20-T3)) + geom_density() + geom_vline(xintercept = 0)
+```
+
